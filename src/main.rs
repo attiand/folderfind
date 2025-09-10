@@ -10,8 +10,8 @@ use std::{fs, io};
 #[command(version, about, long_about = None)]
 struct Cli {
     /// Specify root directory, cwd is the default
-    #[clap(short, long, num_args(1), value_name("DIR"), value_hint = clap::ValueHint::DirPath)]
-    directory: Option<PathBuf>,
+    #[clap(short, long, num_args(1), value_name("DIR"), default_value = ".", value_hint = clap::ValueHint::DirPath)]
+    directory: PathBuf,
 
     /// List folders for which the command returned anything but 0
     #[clap(short, long)]
@@ -34,12 +34,12 @@ struct Cli {
     exec: Vec<String>,
 }
 
-fn read_dir<P: AsRef<Path>>(dir: P) -> io::Result<Vec<PathBuf>> {
+fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     let entries = fs::read_dir(dir)?
         .map(|res| res.map(|e| e.path()))
         .collect::<Result<Vec<_>, io::Error>>()?;
 
-    return Ok(entries);
+    Ok(entries)
 }
 
 fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8) {
@@ -81,12 +81,7 @@ fn main() -> Result<(), String> {
         return Ok(());
     }
 
-    match read_dir(
-        cli.directory
-            .as_ref()
-            .map(|d| d.as_path())
-            .unwrap_or(Path::new(".")),
-    ) {
+    match read_dir(&cli.directory) {
         Ok(entries) => {
             entries
                 .par_iter()
