@@ -1,10 +1,10 @@
 use clap::{CommandFactory, Parser};
 use clap_complete::{Shell, generate};
+use colour::*;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
-use colour::*;
 
 /// Execute the specified command for each sub directory. Print the folder name if the command exit with status 0 (unless –invert is specified)
 #[derive(Parser)]
@@ -53,15 +53,26 @@ fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
+fn eval_args(cmd_vec: &Vec<String>, dir: &PathBuf) -> (String, Vec<String>) {
+    let cmd = cmd_vec[0].clone();
 
-     let args = match dir.as_os_str().to_str() {
-        Some(d) => cmd.iter().skip(1).map(|a| a.replace("{}", d)).collect::<Vec<_>>(),
-        None => Vec::from(&cmd[1..])
-     };
+    let args = match dir.as_os_str().to_str() {
+        Some(d) => cmd_vec
+            .iter()
+            .skip(1)
+            .map(|a| a.replace("{}", d))
+            .collect::<Vec<_>>(),
+        None => Vec::from(&cmd_vec[1..]),
+    };
+
+    return (cmd, args);
+}
+
+fn execute(cmd_vec: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
+    let (cmd, args) = eval_args(&cmd_vec, dir);
 
     if debug > 0 {
-        debug!("exec {} {:?} in {}", &cmd[0], args, dir.display());
+        debug!("exec {} {:?}", cmd, args);
     }
 
     let show_stdout = if debug > 1 {
@@ -73,10 +84,10 @@ fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_war
     let show_stderr = if ignore_warnings {
         Stdio::null()
     } else {
-       Stdio::inherit()
+        Stdio::inherit()
     };
 
-    let status = Command::new(&cmd[0])
+    let status = Command::new(cmd)
         .stdin(Stdio::null())
         .stdout(show_stdout)
         .stderr(show_stderr)
@@ -92,10 +103,13 @@ fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_war
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
 
-    rayon::ThreadPoolBuilder::new().num_threads(cli.threads).build_global().unwrap();
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(cli.threads)
+        .build_global()
+        .unwrap();
 
     if cli.debug > 0 {
-        debug!("number of threads: {}", rayon::current_num_threads());
+        debug!("using {} threads", rayon::current_num_threads());
     }
 
     if let Some(shell) = cli.completion {
