@@ -7,3 +7,4 @@ edition = "2024"
 clap = { version = "4.5.32", features = ["derive"] }
 clap_complete = { version = "4.5.40" }
 rayon = "1.11.0"
+colour = "2.1.0"

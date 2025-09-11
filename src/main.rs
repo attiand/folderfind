@@ -4,6 +4,7 @@ use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
+use colour::*;
 
 /// Visit each folder in the root directory and execute the specified command. Print the folder name if the command exit with status 0 (unless –invert is specified)
 #[derive(Parser)]
@@ -21,9 +22,13 @@ struct Cli {
     #[arg(long, action = clap::ArgAction::Count)]
     debug: u8,
 
+    /// Number of threads to use, use rayon default if not specified.
+    #[arg(short, long, default_value_t = 0)]
+    threads: usize,
+
     /// Ignore stderr from the command
-    #[arg(short, long)]
-    silent: bool,
+    #[arg(short('e'), long)]
+    ignore_warnings: bool,
 
     /// Generate completion for the specified shell and exit
     #[clap(long, num_args(1), value_name("SHELL"))]
@@ -34,6 +39,12 @@ struct Cli {
     exec: Vec<String>,
 }
 
+macro_rules! debug {
+   ($($tt:tt)*) => {
+        yellow_ln!($($tt)*);
+    };
+}
+
 fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     let entries = fs::read_dir(dir)?
         .map(|res| res.map(|e| e.path()))
@@ -42,9 +53,9 @@ fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8) {
+fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
     if debug > 0 {
-        println!("exec {:?} in {}", cmd, dir.display());
+        debug!("exec {:?} in {}", cmd, dir.display());
     }
 
     let show_stdout = if debug > 1 {
@@ -53,10 +64,16 @@ fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8) {
         Stdio::null()
     };
 
+    let show_stderr = if ignore_warnings {
+        Stdio::null()
+    } else {
+       Stdio::inherit()
+    };
+
     let status = Command::new(&cmd[0])
         .stdin(Stdio::null())
         .stdout(show_stdout)
-        .stderr(Stdio::inherit())
+        .stderr(show_stderr)
         .current_dir(dir)
         .args(&cmd[1..])
         .status()
@@ -69,6 +86,12 @@ fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8) {
 
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
+
+    rayon::ThreadPoolBuilder::new().num_threads(cli.threads).build_global().unwrap();
+
+    if cli.debug > 0 {
+        debug!("number of threads: {}", rayon::current_num_threads());
+    }
 
     if let Some(shell) = cli.completion {
         let cmd = &mut Cli::command();
@@ -85,7 +108,7 @@ fn main() -> Result<(), String> {
         Ok(entries) => {
             entries
                 .par_iter()
-                .for_each(|d| execute(&cli.exec, d, cli.invert, cli.debug));
+                .for_each(|d| execute(&cli.exec, d, cli.invert, cli.debug, cli.ignore_warnings));
         }
         Err(e) => return Err(e.to_string()),
     }
