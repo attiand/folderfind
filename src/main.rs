@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 use std::{fs, io};
 use colour::*;
 
-/// Visit each folder in the root directory and execute the specified command. Print the folder name if the command exit with status 0 (unless –invert is specified)
+/// Execute the specified command for each sub directory. Print the folder name if the command exit with status 0 (unless –invert is specified)
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -54,8 +54,14 @@ fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
 }
 
 fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
+
+     let args = match dir.as_os_str().to_str() {
+        Some(d) => cmd.iter().skip(1).map(|a| a.replace("{}", d)).collect::<Vec<_>>(),
+        None => Vec::from(&cmd[1..])
+     };
+
     if debug > 0 {
-        debug!("exec {:?} in {}", cmd, dir.display());
+        debug!("exec {} {:?} in {}", &cmd[0], args, dir.display());
     }
 
     let show_stdout = if debug > 1 {
@@ -74,8 +80,7 @@ fn execute(cmd: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_war
         .stdin(Stdio::null())
         .stdout(show_stdout)
         .stderr(show_stderr)
-        .current_dir(dir)
-        .args(&cmd[1..])
+        .args(args)
         .status()
         .expect("failed to execute command");
 
