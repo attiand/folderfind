@@ -6,11 +6,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
 
-/// Execute the specified command for each sub directory. Print the folder name if the command exit with status 0 (unless –invert is specified)
+/// Execute the specified command for each sub directory (non recursively) in the root directory. Print the folder name if the command exit with status 0.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// Specify root directory, cwd is the default
+    /// Specify root directory
     #[clap(short, long, num_args(1), value_name("DIR"), default_value = ".", value_hint = clap::ValueHint::DirPath)]
     directory: PathBuf,
 
