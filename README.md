@@ -21,5 +21,8 @@ Options:
 
 ## Examples
 
+List repos that use the maven dep `org.apache.commons`. Specifying the path ('.') avoids a warning from `ripgrep`.
 
-
+```bash
+folderfind rg -q -tmaven org.apache.commons .
+```
