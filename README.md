@@ -1,9 +1,9 @@
-# folderfind
+# folder-find
 
-```
 Visit each folder in the root directory non recursively and execute the specified command. Print the folder name if the command exit with status 0
 
-Usage: folderfind [OPTIONS] <COMMAND>...
+```
+Usage: folder-find [OPTIONS] <COMMAND>...
 
 Arguments:
   <COMMAND>...  The command to execute
@@ -24,5 +24,5 @@ Options:
 List repos that use the maven dep `org.apache.commons`. Specifying the path ('.') avoids a warning from `ripgrep`.
 
 ```bash
-folderfind rg -q -tmaven org.apache.commons .
+folder-find rg -q -tmaven org.apache.commons .
 ```
