@@ -1,7 +1,7 @@
 # folderfind
 
 ```
-Execute the specified command for each sub directory (non recursively) in the root directory. Print the folder name if the command exit with status 0
+Visit each folder in the root directory non recursively and execute the specified command. Print the folder name if the command exit with status 0
 
 Usage: folderfind [OPTIONS] <COMMAND>...
 
@@ -19,7 +19,7 @@ Options:
   -V, --version             Print version
 ```
 
-# Examples
+## Examples
 
 
 

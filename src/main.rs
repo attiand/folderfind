@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
 
-/// Execute the specified command for each sub directory (non recursively) in the root directory. Print the folder name if the command exit with status 0.
+/// Visit each folder in the root directory non recursively and execute the specified command. Print the folder name if the command exit with status 0
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -53,23 +53,8 @@ fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-fn eval_args(cmd_vec: &Vec<String>, dir: &PathBuf) -> (String, Vec<String>) {
-    let cmd = cmd_vec[0].clone();
-
-    let args = match dir.as_os_str().to_str() {
-        Some(d) => cmd_vec
-            .iter()
-            .skip(1)
-            .map(|a| a.replace("{}", d))
-            .collect::<Vec<_>>(),
-        None => Vec::from(&cmd_vec[1..]),
-    };
-
-    return (cmd, args);
-}
-
-fn execute(cmd_vec: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
-    let (cmd, args) = eval_args(&cmd_vec, dir);
+fn execute(cmd: &[String], dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
+    let (cmd, args) = (&cmd[0], &cmd[1..]);
 
     if debug > 0 {
         debug!("exec {} {:?}", cmd, args);
@@ -92,6 +77,7 @@ fn execute(cmd_vec: &Vec<String>, dir: &PathBuf, invert: bool, debug: u8, ignore
         .stdout(show_stdout)
         .stderr(show_stderr)
         .args(args)
+        .current_dir(dir)
         .status()
         .expect("failed to execute command");
 
