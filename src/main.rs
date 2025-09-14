@@ -2,7 +2,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::{Shell, generate};
 use colour::*;
 use rayon::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
 
@@ -47,7 +47,7 @@ macro_rules! debug {
 
 fn execute(
     cmd: &[String],
-    dir: &PathBuf,
+    dir: &Path,
     invert: bool,
     debug: u8,
     ignore_warnings: bool,
@@ -85,6 +85,18 @@ fn execute(
     Ok(())
 }
 
+fn process_dirs(
+    cmd: &[String],
+    dir: &PathBuf,
+    invert: bool,
+    debug: u8,
+    ignore_warnings: bool,
+) -> io::Result<()> {
+    fs::read_dir(dir)?
+        .par_bridge()
+        .try_for_each(|d| execute(cmd, &d?.path(), invert, debug, ignore_warnings))
+}
+
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
 
@@ -108,21 +120,14 @@ fn main() -> Result<(), String> {
         return Ok(());
     }
 
-    match fs::read_dir(&cli.directory) {
-        Ok(entries) => {
-            if let Err(e) = entries.par_bridge().try_for_each(|d| {
-                execute(
-                    &cli.exec,
-                    &d?.path(),
-                    cli.invert,
-                    cli.debug,
-                    cli.ignore_warnings,
-                )
-            }) {
-                return Err(e.to_string());
-            }
-        }
-        Err(e) => return Err(e.to_string()),
+    if let Err(e) = process_dirs(
+        &cli.exec,
+        &cli.directory,
+        cli.invert,
+        cli.debug,
+        cli.ignore_warnings,
+    ) {
+        return Err(e.to_string());
     }
 
     Ok(())
