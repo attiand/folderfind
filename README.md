@@ -19,6 +19,12 @@ Options:
   -V, --version             Print version
 ```
 
+## Install
+
+```bash
+cargo install --git https://github.com/attiand/folderfind.git
+```
+
 ## Examples
 
 List repos that use the maven dep `org.apache.commons`. Specifying the path ('.') avoids a warning from `ripgrep`.
