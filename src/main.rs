@@ -2,7 +2,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::{Shell, generate};
 use colour::*;
 use rayon::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::{fs, io};
 
@@ -45,19 +45,17 @@ macro_rules! debug {
     };
 }
 
-fn read_dir(dir: &Path) -> io::Result<Vec<PathBuf>> {
-    let entries = fs::read_dir(dir)?
-        .map(|res| res.map(|e| e.path()))
-        .collect::<Result<Vec<_>, io::Error>>()?;
-
-    Ok(entries)
-}
-
-fn execute(cmd: &[String], dir: &PathBuf, invert: bool, debug: u8, ignore_warnings: bool) {
+fn execute(
+    cmd: &[String],
+    dir: &PathBuf,
+    invert: bool,
+    debug: u8,
+    ignore_warnings: bool,
+) -> io::Result<()> {
     let (cmd, args) = (&cmd[0], &cmd[1..]);
 
     if debug > 0 {
-        debug!("exec {} {:?}", cmd, args);
+        debug!("exec {} {:?} in {}", cmd, args, dir.display());
     }
 
     let show_stdout = if debug > 1 {
@@ -78,12 +76,13 @@ fn execute(cmd: &[String], dir: &PathBuf, invert: bool, debug: u8, ignore_warnin
         .stderr(show_stderr)
         .args(args)
         .current_dir(dir)
-        .status()
-        .expect("failed to execute command");
+        .status();
 
-    if status.success() ^ invert {
+    if status?.success() ^ invert {
         println!("{}", dir.display());
     }
+
+    Ok(())
 }
 
 fn main() -> Result<(), String> {
@@ -103,17 +102,25 @@ fn main() -> Result<(), String> {
         generate(
             shell,
             cmd,
-            Cli::command().get_bin_name().unwrap_or("semver"),
+            Cli::command().get_bin_name().unwrap_or("folder-find"),
             &mut io::stdout(),
         );
         return Ok(());
     }
 
-    match read_dir(&cli.directory) {
+    match fs::read_dir(&cli.directory) {
         Ok(entries) => {
-            entries
-                .par_iter()
-                .for_each(|d| execute(&cli.exec, d, cli.invert, cli.debug, cli.ignore_warnings));
+            if let Err(e) = entries.par_bridge().try_for_each(|d| {
+                execute(
+                    &cli.exec,
+                    &d?.path(),
+                    cli.invert,
+                    cli.debug,
+                    cli.ignore_warnings,
+                )
+            }) {
+                return Err(e.to_string());
+            }
         }
         Err(e) => return Err(e.to_string()),
     }
